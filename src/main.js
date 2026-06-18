@@ -7,6 +7,12 @@ import { carregarSimulados, initNovoSimulado } from './pages/simulados-lista.js'
 import { carregarMateriais, initNovoMaterial } from './pages/materiais.js';
 import { initBancoImagens } from './pages/imagembank.js';
 import { carregarDesafios, initDesafio } from './pages/desafio.js';
+import { carregarArtigos, initArtigos } from './pages/artigos.js';
+import './pages/editor-simulado.js';
+import { initSearch } from './pages/search.js';
+import { initNotifications } from './pages/notifications.js';
+import { initAdminUsuarios } from './pages/admin-usuarios.js';
+import { initHelpTutorial } from './pages/help-tutorial.js';
 
 window._iniciarRealtime = iniciarRealtime;
 
@@ -15,6 +21,8 @@ window._navigateTo = function navigateTo(sec) {
   document.getElementById('tela-simulado').classList.add('hidden');
   document.getElementById('tela-editor-simulado').classList.add('hidden');
   document.getElementById('tela-desafio').classList.add('hidden');
+  document.getElementById('tela-leitor-artigo').classList.add('hidden');
+  document.getElementById('tela-editor-artigo').classList.add('hidden');
   document.getElementById('feed-mural').style.display = '';
   document.getElementById('tela-thread').classList.remove('active');
   document.querySelectorAll('.section').forEach((s) => s.classList.remove('active'));
@@ -30,6 +38,9 @@ window._navigateTo = function navigateTo(sec) {
       break;
     case 'mural':
       carregarMural();
+      break;
+    case 'artigos':
+      carregarArtigos();
       break;
     case 'conteudo':
       carregarConteudo();
@@ -62,6 +73,11 @@ initSimuladoButtons();
 initNovoSimulado();
 initNovoMaterial();
 initBancoImagens();
+initArtigos();
+initSearch();
+initNotifications();
+initAdminUsuarios();
+initHelpTutorial();
 initDesafio();
 
 iniciar();

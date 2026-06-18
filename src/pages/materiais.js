@@ -12,7 +12,7 @@ export async function carregarMateriais() {
   grid.innerHTML = '';
   if (!mats?.length) {
     grid.innerHTML =
-      '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📁</div><p>Nenhum material disponível.</p></div>';
+      '<div class="empty-state-illustrated" style="grid-column:1/-1"><span class="empty-art">📁</span><p>Nenhum material disponível</p><div class="empty-hint">Materiais como PDFs, vídeos e sites aparecerão aqui</div></div>';
     return;
   }
   mats.forEach((m) => {

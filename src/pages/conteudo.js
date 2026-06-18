@@ -26,7 +26,7 @@ export async function carregarConteudo() {
   });
   Object.entries(containers).forEach(([, c]) => {
     if (!c.children.length)
-      c.innerHTML = '<div class="empty-state"><div class="empty-icon">📄</div><p>Nenhum conteúdo ainda.</p></div>';
+      c.innerHTML = '<div class="empty-state-illustrated"><span class="empty-art">📄</span><p>Nenhum conteúdo ainda</p><div class="empty-hint">O conteúdo desta aba aparecerá aqui quando for publicado</div></div>';
   });
 }
 

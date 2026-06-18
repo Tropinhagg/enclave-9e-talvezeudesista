@@ -1,6 +1,7 @@
 import { sb } from '../services/supabase.js';
 import { esc, toast, confirmar } from './ui.js';
 import { getUsuario, getPerfil, registrarLog } from './auth.js';
+import { verificarEConcederBadges, atualizarMetaDiaria } from './gamificacao.js';
 
 let simuladoAtual = null;
 let tentativaId = null;
@@ -17,6 +18,11 @@ export async function abrirSimulado(simId) {
   const { data: sim } = await sb.from('simulados').select('*').eq('id', simId).single();
   if (!sim) {
     toast('Simulado não encontrado', 'error');
+    return;
+  }
+
+  if (!sim.ativo && getPerfil().role === 'aluno') {
+    toast('Este simulado não está disponível', 'warn');
     return;
   }
 
@@ -138,9 +144,58 @@ async function entregarSimulado() {
   removerMonitoramento();
   await registrarLog('concluiu_simulado', { tentativa_id: tentativaId });
 
-  dispararConfete();
-  toast('Simulado entregue!', 'success');
-  voltarDashboard();
+  const respondidas = Object.keys(respostas).length;
+  await atualizarMetaDiaria(respondidas);
+
+  const questoes = questoesCache;
+  const respostasUsuario = respostas;
+  const { data: gabarito } = await sb
+    .from('questoes')
+    .select('id, correta, explicacao')
+    .in('id', Object.keys(respostasUsuario));
+
+  const gabMap = {};
+  if (gabarito) {
+    for (const q of gabarito) gabMap[q.id] = q;
+  }
+
+  let acertos = 0;
+  const letras = ['A', 'B', 'C', 'D', 'E'];
+  let feedbackHtml = '<div class="feedback-container"><div class="feedback-title">Resultado do Simulado</div>';
+
+  for (const q of questoes) {
+    const resp = respostasUsuario[q.id];
+    const gab = gabMap[q.id];
+    const correta = resp === gab?.correta;
+    if (correta) acertos++;
+    feedbackHtml += `
+      <div class="feedback-questao ${correta ? 'feedback-certa' : 'feedback-errada'}">
+        <div class="feedback-enunciado">${esc(q.enunciado)}</div>
+        <div class="feedback-resposta">Sua resposta: <strong>${resp !== undefined ? letras[resp] + ' - ' + esc((q.alternativas || [])[resp] || '') : 'N/A'}</strong></div>
+        <div class="feedback-gabarito">Resposta correta: <strong>${gab ? letras[gab.correta] + ' - ' + esc((q.alternativas || [])[gab.correta] || '') : 'N/A'}</strong></div>
+        ${gab?.explicacao ? `<div class="feedback-explicacao">💡 ${esc(gab.explicacao)}</div>` : ''}
+      </div>`;
+  }
+
+  const total = questoes.length;
+  const pct = Math.round((acertos / total) * 100);
+  feedbackHtml += `<div class="feedback-resumo">Você acertou <strong>${acertos} de ${total}</strong> (${pct}%)</div>`;
+  feedbackHtml += '<button class="btn-primary" id="btn-fechar-feedback">Voltar ao início</button></div>';
+
+  document.getElementById('questoes-lista').innerHTML = feedbackHtml;
+  document.getElementById('sim-progresso').textContent = `${respondidas} respondidas`;
+  document.querySelector('.sim-footer')?.classList.add('hidden');
+  document.getElementById('btn-entregar-sim')?.classList.add('hidden');
+  document.getElementById('btn-entregar-sim-2')?.classList.add('hidden');
+  document.querySelector('.sim-header-bar')?.classList.add('hidden');
+
+  document.getElementById('btn-fechar-feedback').addEventListener('click', () => {
+    dispararConfete();
+    toast(`Você acertou ${acertos} de ${total}!`, 'success');
+    voltarDashboard();
+  });
+
+  await verificarEConcederBadges();
 }
 
 function dispararConfete() {

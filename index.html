@@ -12,6 +12,9 @@
 <link rel="stylesheet" href="src/styles/base.css" />
 <link rel="stylesheet" href="src/styles/components.css" />
 <link rel="stylesheet" href="src/styles/sections.css" />
+<link rel="stylesheet" href="src/styles/help-tutorial.css" />
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet" />
+<script src="https://cdn.quilljs.com/1.3.7/quill.js"></script>
 </head>
 <body>
 
@@ -51,12 +54,25 @@
   <nav class="header-nav" id="header-nav">
     <button class="nav-btn" data-section="inicio">🏠 Início</button>
     <button class="nav-btn" data-section="mural">📋 Mural</button>
+    <button class="nav-btn" data-section="artigos">📝 Artigos</button>
     <button class="nav-btn" data-section="conteudo">📚 Conteúdo</button>
     <button class="nav-btn" data-section="simulados">🎯 Simulados</button>
     <button class="nav-btn" data-section="materiais">📁 Materiais</button>
     <button class="nav-btn" data-section="desafio">🏆 Desafio</button>
   </nav>
   <div class="header-right">
+    <div class="search-bar-wrap" id="search-bar-wrap">
+      <input class="search-input" id="search-input" type="text" placeholder="Buscar..." />
+      <div class="search-results hidden" id="search-results"></div>
+    </div>
+    <button class="header-icon-btn btn-gerenciar hidden" id="btn-gerenciar" title="Gerenciar">⚙️</button>
+    <div class="notif-wrap" id="notif-wrap">
+      <button class="header-icon-btn" id="btn-notif" title="Notificações">🔔<span class="notif-badge hidden" id="notif-badge">0</span></button>
+      <div class="notif-dropdown hidden" id="notif-dropdown">
+        <div class="notif-header">Notificações</div>
+        <div class="notif-list" id="notif-list"></div>
+      </div>
+    </div>
     <div class="account-trigger" id="account-trigger">
       <div class="avatar-sm" id="header-avatar"><span id="header-initials">?</span></div>
       <span class="account-name" id="header-nome">—</span>
@@ -80,7 +96,10 @@
 
   <!-- INÍCIO -->
   <section class="section" id="sec-inicio" data-section="inicio">
-    <div class="section-title">Bom estudo! 🎓</div>
+    <div class="section-header-img sec-inicio">
+      <div class="section-title"><span class="title-icon">🎓</span> Bom estudo! <span class="title-deco">— Dashboard</span></div>
+      <div class="section-sub">Acompanhe seu desempenho nos simulados</div>
+    </div>
     <div class="stats-grid" id="stats-grid"></div>
     <div class="panels-grid">
       <div class="bloco-card">
@@ -91,11 +110,19 @@
         <div class="panel-title">Simulados Disponíveis</div>
         <div id="panel-sims"><div class="empty-state"><div class="empty-icon">🎯</div><p>Nenhum simulado disponível.</p></div></div>
       </div>
+      <div class="bloco-card">
+        <div class="panel-title">🏅 Distintivos</div>
+        <div id="badges-grid"></div>
+      </div>
     </div>
   </section>
 
   <!-- MURAL -->
   <section class="section" id="sec-mural" data-section="mural">
+    <div class="section-header-img sec-mural">
+      <div class="section-title"><span class="title-icon">📋</span> Mural <span class="title-deco">— Avisos da turma</span></div>
+      <div class="section-sub">Compartilhe notícias, avisos e materiais com a turma</div>
+    </div>
     <div id="mural-compose-area" class="hidden">
       <div class="mural-compose">
         <div class="compose-row">
@@ -139,11 +166,26 @@
     </div>
   </section>
 
+  <!-- ARTIGOS -->
+  <section class="section" id="sec-artigos" data-section="artigos">
+    <div class="section-header-img sec-artigos">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="section-title" style="margin-bottom:0;"><span class="title-icon">📝</span> Artigos <span class="title-deco">— Leitura e estudo</span></div>
+        <button class="btn-ghost btn-sm hidden" id="btn-novo-artigo">+ Novo artigo</button>
+      </div>
+      <div class="section-sub">Artigos e textos complementares para seus estudos</div>
+    </div>
+    <div class="artigos-grid" id="artigos-grid"></div>
+  </section>
+
   <!-- CONTEÚDO -->
   <section class="section" id="sec-conteudo" data-section="conteudo">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-      <div class="section-title" style="margin-bottom:0;">Conteúdo</div>
-      <button class="btn-ghost btn-sm hidden" id="btn-novo-bloco">+ Novo bloco</button>
+    <div class="section-header-img sec-conteudo">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="section-title" style="margin-bottom:0;"><span class="title-icon">📚</span> Conteúdo <span class="title-deco">— Material de estudo</span></div>
+        <button class="btn-ghost btn-sm hidden" id="btn-novo-bloco">+ Novo bloco</button>
+      </div>
+      <div class="section-sub">Conteúdos organizados por matéria para seus estudos</div>
     </div>
     <nav class="abas-nav" id="abas-nav">
       <button class="aba-btn active" data-aba="edital">📄 Edital</button>
@@ -159,9 +201,12 @@
 
   <!-- SIMULADOS -->
   <section class="section" id="sec-simulados" data-section="simulados">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-      <div class="section-title" style="margin-bottom:0;">Simulados 🎯</div>
-      <button class="btn-ghost btn-sm hidden" id="btn-novo-simulado">+ Novo simulado</button>
+    <div class="section-header-img sec-simulados">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="section-title" style="margin-bottom:0;"><span class="title-icon">🎯</span> Simulados <span class="title-deco">— Teste seus conhecimentos</span></div>
+        <button class="btn-ghost btn-sm hidden" id="btn-novo-simulado">+ Novo simulado</button>
+      </div>
+      <div class="section-sub">Pratique com simulados por matéria ou gerais</div>
     </div>
     <div style="margin-bottom:22px;">
       <div class="panel-title" style="margin-bottom:14px;">Por Matéria</div>
@@ -176,27 +221,73 @@
 
   <!-- MATERIAIS -->
   <section class="section" id="sec-materiais" data-section="materiais">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-      <div class="section-title" style="margin-bottom:0;">Materiais</div>
-      <button class="btn-ghost btn-sm hidden" id="btn-novo-material">+ Novo material</button>
+    <div class="section-header-img sec-materiais">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="section-title" style="margin-bottom:0;"><span class="title-icon">📁</span> Materiais <span class="title-deco">— Recursos de apoio</span></div>
+        <button class="btn-ghost btn-sm hidden" id="btn-novo-material">+ Novo material</button>
+      </div>
+      <div class="section-sub">PDFs, vídeos, sites e outros materiais para estudo</div>
     </div>
     <div class="materiais-grid" id="materiais-grid"></div>
   </section>
 
   <!-- DESAFIO -->
   <section class="section" id="sec-desafio" data-section="desafio">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-      <div class="section-title" style="margin-bottom:0;">Desafio 🏆</div>
-      <button class="btn-ghost btn-sm hidden" id="btn-novo-desafio">+ Novo desafio</button>
+    <div class="section-header-img sec-desafio">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="section-title" style="margin-bottom:0;"><span class="title-icon">🏆</span> Desafio <span class="title-deco">— Minigame de perguntas</span></div>
+        <button class="btn-ghost btn-sm hidden" id="btn-novo-desafio">+ Novo desafio</button>
+      </div>
+      <div class="section-sub">Teste seus reflexos respondendo perguntas contra o tempo</div>
     </div>
     <div id="desafios-lista"></div>
   </section>
 
 </main>
 
+<!-- TELA LEITOR DE ARTIGO -->
+<div id="tela-leitor-artigo" class="hidden">
+  <div class="leitor-header">
+    <button class="btn-ghost btn-sm" id="btn-voltar-leitor">← Voltar</button>
+    <div class="leitor-titulo" id="leitor-titulo">Título</div>
+  </div>
+  <article class="leitor-conteudo" id="leitor-conteudo"></article>
+</div>
+
+<!-- TELA EDITOR DE ARTIGO -->
+<div id="tela-editor-artigo" class="hidden">
+  <div class="editor-header">
+    <button class="btn-ghost btn-sm" id="btn-voltar-editor-artigo">← Voltar</button>
+    <div class="section-title" style="margin-bottom:0;" id="editor-artigo-titulo">Novo artigo</div>
+    <button class="btn-primary btn-sm" id="btn-publicar-artigo">Publicar</button>
+  </div>
+  <div class="editor-artigo-body">
+    <div class="form-group">
+      <label>Título</label>
+      <input id="artigo-titulo-inp" type="text" placeholder="Título do artigo" />
+    </div>
+    <div class="form-group">
+      <label>Resumo (opcional)</label>
+      <input id="artigo-resumo-inp" type="text" placeholder="Breve descrição do artigo" />
+    </div>
+    <div class="form-group">
+      <label>URL da imagem de capa (opcional)</label>
+      <input id="artigo-capa-inp" type="text" placeholder="https://..." />
+    </div>
+    <div class="form-group">
+      <label>Conteúdo</label>
+      <div id="quill-editor"></div>
+    </div>
+    <div class="form-group editor-checkboxes">
+      <label><input type="checkbox" id="artigo-publicado-chk" /> Publicado</label>
+    </div>
+  </div>
+</div>
+
 <!-- TELA DESAFIO -->
 <div id="tela-desafio" class="hidden">
   <div class="desafio-header">
+    <img class="desafio-header-img" id="desafio-img-deco" src="https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=700" alt="" style="display:none;" />
     <div class="desafio-titulo" id="desafio-titulo-header">Desafio</div>
     <div class="desafio-progress" id="desafio-progress">Pergunta 1 de 10</div>
     <div class="desafio-timer" id="desafio-timer">20</div>
@@ -229,9 +320,12 @@
 
 <!-- TELA EDITOR DE SIMULADO -->
 <div id="tela-editor-simulado" class="hidden">
-  <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;flex-wrap:wrap;">
     <button class="btn-ghost btn-sm" id="btn-voltar-editor">← Voltar</button>
     <div class="section-title" style="margin-bottom:0;" id="editor-sim-titulo">Editor de Simulado</div>
+    <span id="editor-sim-status" class="badge badge-geral" style="margin-left:auto;">📝 Rascunho</span>
+    <button class="btn-primary btn-sm hidden" id="btn-publicar-simulado">📢 Publicar</button>
+    <button class="btn-ghost btn-sm hidden" id="btn-rascunho-simulado">💾 Salvar como rascunho</button>
   </div>
   <div class="editor-layout">
     <div>
@@ -252,6 +346,7 @@
 <nav id="mobile-nav" class="hidden">
   <button class="mnav-btn" data-section="inicio"><span class="mnav-icon">🏠</span>Início</button>
   <button class="mnav-btn" data-section="mural"><span class="mnav-icon">📋</span>Mural</button>
+  <button class="mnav-btn" data-section="artigos"><span class="mnav-icon">📝</span>Artigos</button>
   <button class="mnav-btn" data-section="conteudo"><span class="mnav-icon">📚</span>Conteúdo</button>
   <button class="mnav-btn" data-section="simulados"><span class="mnav-icon">🎯</span>Simulados</button>
   <button class="mnav-btn" data-section="materiais"><span class="mnav-icon">📁</span>Materiais</button>
@@ -338,6 +433,10 @@
       <input type="file" id="file-avatar" accept="image/*" />
     </div>
     <div class="form-group"><label>Nome completo</label><input id="perfil-nome" type="text" style="width:100%;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;color:var(--text);font-family:inherit;font-size:15px;outline:none;" /></div>
+    <div style="margin-top:16px;">
+      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px;">🏅 Distintivos</div>
+      <div id="perfil-badges-grid" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+    </div>
     <div class="modal-footer">
       <button class="btn-ghost" id="btn-perfil-fechar">Fechar</button>
       <button class="btn-primary" id="btn-perfil-salvar" style="width:auto;">Salvar</button>
@@ -402,6 +501,23 @@
   </div>
 </div>
 
+<!-- MODAL GERENCIAR -->
+<div class="modal-overlay hidden" id="modal-gerenciar">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-title">⚙️ Gerenciar</div>
+    <div class="gerenciar-grid">
+      <button class="gerenciar-btn" data-editor="simulados">🎯 Simulados</button>
+      <button class="gerenciar-btn" data-editor="artigos">📝 Artigos</button>
+      <button class="gerenciar-btn" data-editor="desafios">🏆 Desafios</button>
+      <button class="gerenciar-btn" data-editor="perfil">👤 Perfil</button>
+      <button class="gerenciar-btn" data-action="usuarios">👥 Usuários</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" id="btn-gerenciar-fechar">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL BANCO DE IMAGENS -->
 <div class="modal-overlay hidden" id="modal-imagembank">
   <div class="modal" style="max-width:700px;">
@@ -431,6 +547,144 @@
       <button class="btn-ghost" id="btn-desafio-cancelar">Cancelar</button>
       <button class="btn-primary" id="btn-desafio-criar" style="width:auto;">Criar</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL ADMIN USUARIOS -->
+<div class="modal-overlay hidden" id="modal-admin-usuarios">
+  <div class="modal modal-fullscreen">
+    <div class="modal-title">
+      <span>👥 Gerenciar Usuários</span>
+      <button class="btn-ghost btn-sm" id="btn-admin-usuarios-fechar">✕</button>
+    </div>
+    <div class="admin-usuarios-toolbar">
+      <div class="admin-filtro-role">
+        <button class="admin-role-tab active" data-role="todos">Todos</button>
+        <button class="admin-role-tab" data-role="aluno">Alunos</button>
+        <button class="admin-role-tab" data-role="professor">Professores</button>
+        <button class="admin-role-tab" data-role="admin">Admins</button>
+      </div>
+      <div class="admin-busca">
+        <input id="admin-buscar-usuarios" type="text" placeholder="Buscar por nome, apelido ou email..." />
+      </div>
+      <button class="btn-primary" id="btn-admin-usuarios-add">➕ Novo</button>
+    </div>
+    <div class="admin-usuarios-lista" id="admin-usuarios-lista">
+      <div class="admin-loading">Carregando...</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CRIAR USUARIO -->
+<div class="modal-overlay hidden" id="modal-admin-criar-usuario">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">➕ Novo usuário</div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;margin-top:16px;">
+      <div class="form-group"><label>Apelido</label><input id="admin-criar-apelido" type="text" placeholder="Ex: joaosilva" /></div>
+      <div class="form-group"><label>Nome completo</label><input id="admin-criar-nome" type="text" placeholder="Ex: João da Silva" /></div>
+      <div class="form-group"><label>Email</label><input id="admin-criar-email" type="email" placeholder="Ex: joao@email.com" /></div>
+      <div class="form-group"><label>Senha</label><input id="admin-criar-senha" type="password" placeholder="Mínimo 6 caracteres" /></div>
+      <div class="form-group"><label>Tipo</label>
+        <select id="admin-criar-role">
+          <option value="aluno">Aluno</option>
+          <option value="professor">Professor</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" id="btn-admin-criar-cancelar">Cancelar</button>
+      <button class="btn-primary" id="btn-admin-criar-usuario" style="width:auto;">Criar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR USUARIO -->
+<div class="modal-overlay hidden" id="modal-admin-editar-usuario">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">✏️ Editar usuário</div>
+    <input type="hidden" id="admin-editar-id" />
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;margin-top:16px;">
+      <div class="form-group"><label>Apelido</label><input id="admin-editar-apelido" type="text" /></div>
+      <div class="form-group"><label>Nome completo</label><input id="admin-editar-nome" type="text" /></div>
+      <div class="form-group"><label>Tipo</label>
+        <select id="admin-editar-role">
+          <option value="aluno">Aluno</option>
+          <option value="professor">Professor</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" id="btn-admin-editar-cancelar">Cancelar</button>
+      <button class="btn-primary" id="btn-admin-editar-salvar" style="width:auto;">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESET SENHA -->
+<div class="modal-overlay hidden" id="modal-admin-reset-senha">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title">🔑 Resetar senha</div>
+    <div class="modal-body" style="margin-top:16px;">
+      <p style="margin-bottom:12px;color:var(--text-sec);">Nova senha para <strong id="admin-senha-usuario"></strong></p>
+      <input type="hidden" id="admin-senha-id" />
+      <input id="admin-senha-nova" type="password" placeholder="Mínimo 6 caracteres" style="width:100%;" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" id="btn-admin-senha-cancelar">Cancelar</button>
+      <button class="btn-primary" id="btn-admin-senha-salvar" style="width:auto;">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOTIFICAR USUARIO -->
+<div class="modal-overlay hidden" id="modal-admin-notificar">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">🔔 Enviar notificação</div>
+    <input type="hidden" id="admin-notificar-id" />
+    <input type="hidden" id="admin-notificar-alvo" value="usuario" />
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;margin-top:16px;">
+      <p style="color:var(--text-sec);">Notificação para <strong id="admin-notificar-nome"></strong></p>
+      <div class="form-group"><label>Mensagem</label>
+        <textarea id="admin-notificar-mensagem" rows="4" placeholder="Digite a mensagem da notificação..."></textarea>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-ghost btn-sm" data-notificar-alvo="todos">Enviar para todos</button>
+        <button class="btn-ghost btn-sm" data-notificar-alvo="alunos">Só alunos</button>
+        <button class="btn-ghost btn-sm" data-notificar-alvo="professores">Só professores</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" id="btn-admin-notificar-cancelar">Cancelar</button>
+      <button class="btn-primary" id="btn-admin-notificar-enviar" style="width:auto;">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTÃO DE AJUDA / TOUR -->
+<button class="help-btn" id="btn-ajuda" title="Tour guiado">
+  <span>💡</span>
+</button>
+
+<!-- PAINEL DO TOUR -->
+<div class="help-panel hidden" id="help-panel">
+  <div class="help-header">
+    <div class="help-mascote">
+      <span class="help-mascote-boca"></span>
+    </div>
+    <div class="help-mascote-info">
+      <span class="help-mascote-nome">Gui</span>
+      <span class="help-mascote-status">🟢 Online</span>
+    </div>
+    <button class="help-fechar" id="btn-help-fechar">✕</button>
+  </div>
+  <div class="help-corpo" id="help-corpo"></div>
+  <div class="help-footer">
+    <button class="btn-ghost" id="btn-help-anterior">← Anterior</button>
+    <span class="help-indice" id="help-indice">1/10</span>
+    <button class="btn-primary" id="btn-help-proximo">Próximo →</button>
+    <button class="help-pular" id="btn-help-pular">Pular</button>
   </div>
 </div>
 

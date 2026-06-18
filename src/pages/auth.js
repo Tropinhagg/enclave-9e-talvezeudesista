@@ -2,6 +2,9 @@ import { sb, EMAIL_DOMAIN } from '../services/supabase.js';
 import { uploadCloudinary } from '../services/cloudinary.js';
 import { esc, iniciais, toast, initUI } from './ui.js';
 import { buildBackgroundCarousel } from './carousel.js';
+import { carregarBadges } from './gamificacao.js';
+import { iniciarNotificacoes } from './notifications.js';
+import { abrirAdminUsuarios } from './admin-usuarios.js';
 
 let perfil = null;
 let usuario = null;
@@ -62,13 +65,14 @@ function mostrarApp() {
     document.getElementById('header-avatar').innerHTML = `<img src="${esc(perfil.foto_url)}" alt="${esc(nome)}" />`;
   }
   if (perfil.role !== 'aluno') {
-    ['mural-compose-area', 'btn-novo-bloco', 'btn-novo-simulado', 'btn-novo-material', 'btn-novo-desafio'].forEach((id) => {
+    ['mural-compose-area', 'btn-novo-bloco', 'btn-novo-simulado', 'btn-novo-material', 'btn-novo-desafio', 'btn-novo-artigo', 'btn-gerenciar'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.classList.remove('hidden');
     });
   }
 
   window._iniciarRealtime();
+  iniciarNotificacoes();
   window._navigateTo('inicio');
 }
 
@@ -171,6 +175,8 @@ export function initAuth() {
     toast('Link de redefinição enviado!', 'success');
     document.getElementById('modal-senha').classList.add('hidden');
   });
+
+  initGerenciar();
 }
 
 function abrirModalPerfil() {
@@ -183,6 +189,23 @@ function abrirModalPerfil() {
   }
   document.getElementById('perfil-nome').value = perfil.nome || '';
   document.getElementById('modal-perfil').classList.remove('hidden');
+  carregarBadgesNoPerfil();
+}
+
+async function carregarBadgesNoPerfil() {
+  const grid = document.getElementById('perfil-badges-grid');
+  if (!grid) return;
+  const userBadges = await carregarBadges();
+  if (!userBadges.length) {
+    grid.innerHTML = '<span style="font-size:12px;color:var(--text-muted);">Nenhum distintivo ainda</span>';
+    return;
+  }
+  grid.innerHTML = userBadges
+    .map(
+      (b) =>
+        `<div class="badge-item badge-conquistado" style="width:auto;padding:6px 10px;" title="${esc(b.distintivo?.descricao || '')}"><span class="badge-icon" style="font-size:20px;margin:0;">${b.distintivo?.icone || '🏅'}</span><span class="badge-nome">${esc(b.distintivo?.nome || '')}</span></div>`
+    )
+    .join('');
 }
 
 export function initPerfil() {
@@ -221,6 +244,43 @@ export function initPerfil() {
     }
     toast('Perfil salvo!', 'success');
     document.getElementById('modal-perfil').classList.add('hidden');
+  });
+}
+
+function initGerenciar() {
+  document.getElementById('btn-gerenciar').addEventListener('click', () => {
+    document.getElementById('modal-gerenciar').classList.remove('hidden');
+  });
+  document.getElementById('btn-gerenciar-fechar').addEventListener('click', () => {
+    document.getElementById('modal-gerenciar').classList.add('hidden');
+  });
+  document.querySelectorAll('.gerenciar-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.getElementById('modal-gerenciar').classList.add('hidden');
+      const editor = btn.dataset.editor;
+      const action = btn.dataset.action;
+      if (action === 'usuarios') {
+        abrirAdminUsuarios();
+        return;
+      }
+      switch (editor) {
+        case 'simulados':
+          window._navigateTo('simulados');
+          document.getElementById('btn-novo-simulado')?.click();
+          break;
+        case 'artigos':
+          window._navigateTo('artigos');
+          document.getElementById('btn-novo-artigo')?.click();
+          break;
+        case 'desafios':
+          window._navigateTo('desafio');
+          document.getElementById('btn-novo-desafio')?.click();
+          break;
+        case 'perfil':
+          document.getElementById('dd-perfil')?.click();
+          break;
+      }
+    });
   });
 }
 

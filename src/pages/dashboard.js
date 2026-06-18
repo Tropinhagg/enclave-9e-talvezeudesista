@@ -1,36 +1,53 @@
 import { sb } from '../services/supabase.js';
 import { esc, tempoRelativo, emojiPorValor, toast } from './ui.js';
 import { getUsuario, getPerfil } from './auth.js';
+import { renderizarBadgesNoDashboard } from './gamificacao.js';
 
 export async function carregarInicio() {
+  document.getElementById('stats-grid').innerHTML = Array(3).fill(0).map(() =>
+    '<div class="stat-card"><div class="skeleton" style="width:80px;height:12px;margin-bottom:12px;"></div><div style="display:flex;justify-content:space-between;"><div class="skeleton" style="width:60px;height:32px;"></div><div class="skeleton" style="width:56px;height:56px;border-radius:50%;"></div></div></div>'
+  ).join('');
+  document.getElementById('panel-logs').innerHTML = '<div class="skeleton" style="height:120px;margin-top:12px;"></div>';
+  document.getElementById('panel-sims').innerHTML = '<div class="skeleton" style="height:120px;margin-top:12px;"></div>';
+
   await carregarStats();
   await carregarLogsRecentes();
   await carregarSimuladosQuick();
+  await renderizarBadgesNoDashboard();
 }
 
 async function carregarStats() {
   const uid = getUsuario().id;
-  const { data: tentativas } = await sb
+  const { data: tentativas, error: errTent } = await sb
     .from('tentativas_simulado')
-    .select('id, advertencias, simulado_id, status')
+    .select('id, advertencias, simulado_id, status, respostas_parciais')
     .eq('usuario_id', uid)
     .eq('status', 'concluido');
+  if (errTent) console.warn('Erro ao carregar tentativas:', errTent);
 
   const totalFeitos = tentativas?.length || 0;
 
   let totalAcertos = 0;
   let totalQuestoes = 0;
   if (tentativas?.length) {
-    const ids = tentativas.map((t) => t.id);
-    const { data: detalhes } = await sb
-      .from('tentativas_simulado')
-      .select('respostas_parciais')
-      .in('id', ids);
-    if (detalhes) {
-      for (const d of detalhes) {
-        if (d.respostas_parciais) {
-          totalQuestoes += Object.keys(d.respostas_parciais).length;
-        }
+    const simIds = [...new Set(tentativas.map((t) => t.simulado_id))];
+    const { data: todasQuestoes } = await sb
+      .from('questoes')
+      .select('id, simulado_id, correta')
+      .in('simulado_id', simIds);
+    const gabarito = {};
+    if (todasQuestoes) {
+      for (const q of todasQuestoes) {
+        if (!gabarito[q.simulado_id]) gabarito[q.simulado_id] = {};
+        gabarito[q.simulado_id][q.id] = q.correta;
+      }
+    }
+    for (const t of tentativas) {
+      const respostas = t.respostas_parciais || {};
+      const questoesSimulado = gabarito[t.simulado_id] || {};
+      for (const [qId, resposta] of Object.entries(respostas)) {
+        totalQuestoes++;
+        if (questoesSimulado[qId] === resposta) totalAcertos++;
       }
     }
   }
@@ -39,7 +56,8 @@ async function carregarStats() {
   const totalAdv = tentativas?.reduce((acc, t) => acc + (t.advertencias || 0), 0) || 0;
   const maxAdv = totalFeitos * 5 || 1;
   const advPct = Math.min(100, Math.round((totalAdv / maxAdv) * 100));
-  const { count: totalSims } = await sb.from('simulados').select('*', { count: 'exact', head: true }).eq('ativo', true);
+  const { count: totalSims, error: errCount } = await sb.from('simulados').select('*', { count: 'exact', head: true }).eq('ativo', true);
+  if (errCount) console.warn('Erro ao contar simulados:', errCount);
   const feitosPct = totalSims ? Math.min(100, Math.round((totalFeitos / totalSims) * 100)) : 0;
 
   const statsGrid = document.getElementById('stats-grid');
@@ -116,14 +134,18 @@ function lancarEmojis(e, pct) {
 }
 
 async function carregarLogsRecentes() {
-  const { data: logs } = await sb
+  const { data: logs, error: errLogs } = await sb
     .from('logs')
     .select('*')
     .eq('usuario_id', getUsuario().id)
     .order('criado_em', { ascending: false })
     .limit(5);
+  if (errLogs) console.warn('Erro ao carregar logs:', errLogs);
   const container = document.getElementById('panel-logs');
-  if (!logs?.length) return;
+  if (!logs?.length) {
+    container.innerHTML = '<div class="empty-state-illustrated"><span class="empty-art">📋</span><p>Nenhuma atividade recente</p><div class="empty-hint">Complete um simulado para ver seu histórico aqui</div></div>';
+    return;
+  }
   const acaoMap = {
     login: '🔑',
     logout: '🚪',
@@ -148,14 +170,18 @@ async function carregarLogsRecentes() {
 }
 
 async function carregarSimuladosQuick() {
-  const { data: sims } = await sb
+  const { data: sims, error: errSims } = await sb
     .from('simulados')
     .select('*')
     .eq('ativo', true)
     .order('criado_em', { ascending: false })
     .limit(5);
+  if (errSims) console.warn('Erro ao carregar simulados rápidos:', errSims);
   const container = document.getElementById('panel-sims');
-  if (!sims?.length) return;
+  if (!sims?.length) {
+    container.innerHTML = '<div class="empty-state-illustrated"><span class="empty-art">🎯</span><p>Nenhum simulado disponível</p><div class="empty-hint">Os simulados aparecerão aqui quando forem publicados</div></div>';
+    return;
+  }
   container.innerHTML = sims
     .map(
       (s) =>

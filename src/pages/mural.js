@@ -96,15 +96,20 @@ export async function carregarMural() {
   const feed = document.getElementById('feed-mural');
   feed.innerHTML = '<div class="empty-state"><div class="spinner" style="width:24px;height:24px;margin:auto"></div></div>';
 
-  const { data: posts } = await sb
+  const { data: posts, error: errPosts } = await sb
     .from('publicacoes')
     .select('*, usuarios(nome, foto_url), reacoes(id, usuario_id)')
     .order('fixado', { ascending: false })
     .order('criado_em', { ascending: false });
+  if (errPosts) {
+    console.warn('Erro ao carregar publicações:', errPosts);
+    feed.innerHTML = '<div class="empty-state-illustrated"><span class="empty-art">📋</span><p>Erro ao carregar publicações</p><div class="empty-hint">Tente recarregar a página</div></div>';
+    return;
+  }
 
   feed.innerHTML = '';
   if (!posts?.length) {
-    feed.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>Nenhuma publicação ainda.</p></div>';
+    feed.innerHTML = '<div class="empty-state-illustrated"><span class="empty-art">📋</span><p>Nenhuma publicação ainda</p><div class="empty-hint">As publicações da turma aparecerão aqui</div></div>';
     return;
   }
   posts.forEach((p) => feed.appendChild(criarPostCard(p)));

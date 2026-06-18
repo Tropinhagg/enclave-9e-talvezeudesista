@@ -1,6 +1,7 @@
 import { sb } from '../services/supabase.js';
-import { esc, toast, confirmar } from './ui.js';
+import { esc, toast } from './ui.js';
 import { getUsuario, getPerfil, registrarLog } from './auth.js';
+import { verificarEConcederBadges } from './gamificacao.js';
 
 const DESAFIO_TEMPO_PERGUNTA = 20;
 const LETRAS = ['A', 'B', 'C', 'D', 'E'];
@@ -51,6 +52,7 @@ export function initDesafio() {
       .insert({
         titulo: nome,
         criado_por: getUsuario().id,
+        ativo: false,
         questoes: selecionadas.map((q) => ({
           id: q.id,
           enunciado: q.enunciado,
@@ -67,12 +69,13 @@ export function initDesafio() {
       toast('Erro ao criar desafio', 'error');
       return;
     }
-    toast('Desafio criado!', 'success');
+    toast('Rascunho criado!', 'success');
     carregarDesafios();
   });
 }
 
 export async function carregarDesafios() {
+  const isProf = getPerfil().role !== 'aluno';
   const { data: desafios } = await sb
     .from('desafios')
     .select('*')
@@ -82,19 +85,72 @@ export async function carregarDesafios() {
   lista.innerHTML = '';
 
   if (!desafios?.length) {
-    lista.innerHTML = '<div class="empty-state"><div class="empty-icon">🏆</div><p>Nenhum desafio ainda.</p></div>';
+    lista.innerHTML = '<div class="empty-state-illustrated"><span class="empty-art">🏆</span><p>Nenhum desafio ainda</p><div class="empty-hint">Os desafios aparecerão aqui quando forem criados</div></div>';
     return;
   }
 
-  desafios.forEach((d) => {
+  const visiveis = isProf ? desafios : desafios.filter((d) => d.ativo);
+
+  if (!visiveis.length) {
+    lista.innerHTML = '<div class="empty-state-illustrated"><span class="empty-art">🏆</span><p>Nenhum desafio disponível</p><div class="empty-hint">Aguarde novos desafios serem publicados</div></div>';
+    return;
+  }
+
+  visiveis.forEach((d) => {
     const card = document.createElement('div');
     card.className = 'desafio-card';
-    card.innerHTML = `
-      <div>
-        <div class="sim-card-title">${esc(d.titulo)}</div>
-        <div class="sim-card-meta">${(d.questoes || []).length} perguntas</div>
-      </div>
-      <button class="btn-primary btn-sm" onclick="window.iniciarDesafio('${esc(d.id)}')">Iniciar</button>`;
+    
+    const infoDiv = document.createElement('div');
+    const titulo = document.createElement('div');
+    titulo.className = 'sim-card-title';
+    titulo.textContent = d.titulo;
+    if (!d.ativo && isProf) {
+      const badgeRascunho = document.createElement('span');
+      badgeRascunho.className = 'badge badge-geral';
+      badgeRascunho.textContent = 'Rascunho';
+      titulo.appendChild(document.createTextNode(' '));
+      titulo.appendChild(badgeRascunho);
+    }
+    const meta = document.createElement('div');
+    meta.className = 'sim-card-meta';
+    meta.textContent = `${(d.questoes || []).length} perguntas`;
+    
+    infoDiv.appendChild(titulo);
+    infoDiv.appendChild(meta);
+    
+    const btnWrap = document.createElement('div');
+    btnWrap.style.cssText = 'display:flex;gap:8px;align-items:center;';
+
+    const iniciarBtn = document.createElement('button');
+    iniciarBtn.className = 'btn-primary btn-sm';
+    iniciarBtn.textContent = 'Iniciar';
+    iniciarBtn.addEventListener('click', () => iniciarDesafio(d.id));
+    btnWrap.appendChild(iniciarBtn);
+    
+    if (isProf) {
+      const publicarBtn = document.createElement('button');
+      publicarBtn.className = d.ativo ? 'btn-ghost btn-sm' : 'btn-primary btn-sm';
+      publicarBtn.textContent = d.ativo ? '💾 Rascunho' : '📢 Publicar';
+      publicarBtn.addEventListener('click', async () => {
+        if (d.ativo) {
+          await sb.from('desafios').update({ ativo: false }).eq('id', d.id);
+          toast('Desafio salvo como rascunho', 'success');
+        } else {
+          if (!d.questoes?.length) {
+            toast('Desafio sem questões', 'warn');
+            return;
+          }
+          await sb.from('desafios').update({ ativo: true }).eq('id', d.id);
+          toast('Desafio publicado! ✅', 'success');
+        }
+        carregarDesafios();
+      });
+      btnWrap.appendChild(publicarBtn);
+    }
+    
+    card.appendChild(infoDiv);
+    card.appendChild(btnWrap);
+    
     lista.appendChild(card);
   });
 }
@@ -103,6 +159,11 @@ window.iniciarDesafio = async (desafioId) => {
   const { data: desafio } = await sb.from('desafios').select('*').eq('id', desafioId).single();
   if (!desafio || !desafio.questoes?.length) {
     toast('Desafio vazio', 'error');
+    return;
+  }
+
+  if (!desafio.ativo && getPerfil().role === 'aluno') {
+    toast('Este desafio não está disponível', 'warn');
     return;
   }
 
@@ -116,6 +177,7 @@ window.iniciarDesafio = async (desafioId) => {
   document.getElementById('main-app').classList.add('hidden');
   document.getElementById('tela-desafio').classList.remove('hidden');
   document.getElementById('desafio-titulo-header').textContent = desafio.titulo;
+  document.getElementById('desafio-img-deco').style.display = 'block';
 
   mostrarQuestao();
 };
@@ -206,6 +268,7 @@ function finalizarDesafio() {
 
   const container = document.getElementById('desafio-resultado-container');
   container.classList.remove('hidden');
+  container.innerHTML = '';
 
   const total = questoesDesafio.length;
   const pct = Math.round((acertos / total) * 100);
@@ -216,16 +279,48 @@ function finalizarDesafio() {
   else if (pct >= 30) feedback = 'Estude mais um pouco! 📚';
   else feedback = 'Que tal tentar de novo? 😅';
 
-  container.innerHTML = `
-    <div class="desafio-resultado">
-      <div style="font-size:48px;">${pct >= 70 ? '🏆' : '🎯'}</div>
-      <div class="pontuacao">${pontuacao}</div>
-      <div class="feedback">${feedback}</div>
-      <div style="font-size:15px;color:var(--text-dim);margin-bottom:24px;">
-        ${acertos} de ${total} questões corretas (${pct}%)
-      </div>
-      <button class="btn-primary" onclick="window.voltarDoDesafio()" style="max-width:200px;margin:0 auto;">Voltar</button>
-    </div>`;
+  const resultDiv = document.createElement('div');
+  resultDiv.className = 'desafio-resultado';
+
+  const trofeu = document.createElement('span');
+  trofeu.className = 'desafio-trofeu';
+  trofeu.textContent = pct >= 90 ? '🏆' : pct >= 70 ? '🥇' : pct >= 50 ? '🎯' : '💪';
+  resultDiv.appendChild(trofeu);
+
+  const pontos = document.createElement('div');
+  pontos.className = 'pontuacao';
+  pontos.textContent = pontuacao;
+  resultDiv.appendChild(pontos);
+
+  const fb = document.createElement('div');
+  fb.className = 'feedback';
+  fb.textContent = feedback;
+  resultDiv.appendChild(fb);
+
+  const stats = document.createElement('div');
+  stats.style.cssText = 'font-size:15px;color:var(--text-dim);margin-bottom:24px;';
+  stats.textContent = `${acertos} de ${total} questões corretas (${pct}%)`;
+  resultDiv.appendChild(stats);
+
+  const btnWrap = document.createElement('div');
+  btnWrap.style.cssText = 'display:flex;gap:12px;justify-content:center;flex-wrap:wrap;';
+
+  const tryAgainBtn = document.createElement('button');
+  tryAgainBtn.className = 'btn-primary';
+  tryAgainBtn.style.maxWidth = '200px';
+  tryAgainBtn.textContent = '🔄 Tentar de novo';
+  tryAgainBtn.addEventListener('click', () => window.iniciarDesafio(desafioAtivo?.id));
+  btnWrap.appendChild(tryAgainBtn);
+
+  const backBtn = document.createElement('button');
+  backBtn.className = 'btn-ghost';
+  backBtn.style.maxWidth = '200px';
+  backBtn.textContent = 'Voltar';
+  backBtn.addEventListener('click', window.voltarDoDesafio);
+  btnWrap.appendChild(backBtn);
+
+  resultDiv.appendChild(btnWrap);
+  container.appendChild(resultDiv);
 
   registrarLog('concluiu_desafio', {
     desafio_id: desafioAtivo?.id,
@@ -234,6 +329,7 @@ function finalizarDesafio() {
     total,
   });
 
+  verificarEConcederBadges();
   dispararConfete();
 }
 

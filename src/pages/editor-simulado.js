@@ -8,6 +8,7 @@ let editorSimuladoId = null;
 let editorQuestaoId = null;
 let editorQuestaoImgs = [];
 let questaoExistingImgs = [];
+let editorSimuladoAtivo = false;
 
 window.abrirEditorSimulado = async (simId) => {
   editorSimuladoId = simId;
@@ -15,9 +16,29 @@ window.abrirEditorSimulado = async (simId) => {
   if (!sim) return;
   document.getElementById('main-app').classList.add('hidden');
   document.getElementById('tela-editor-simulado').classList.remove('hidden');
-  document.getElementById('editor-sim-titulo').textContent = `Editor: ${sim.nome}`;
+  document.getElementById('editor-sim-titulo').textContent = sim.nome;
+  editorSimuladoAtivo = sim.ativo;
+  atualizarStatusEditor();
   await carregarEditorQuestoes();
 };
+
+function atualizarStatusEditor() {
+  const statusEl = document.getElementById('editor-sim-status');
+  const publicarBtn = document.getElementById('btn-publicar-simulado');
+  const rascunhoBtn = document.getElementById('btn-rascunho-simulado');
+  
+  if (editorSimuladoAtivo) {
+    statusEl.textContent = '✅ Publicado';
+    statusEl.className = 'badge badge-materia';
+    publicarBtn.classList.add('hidden');
+    rascunhoBtn.classList.remove('hidden');
+  } else {
+    statusEl.textContent = '📝 Rascunho';
+    statusEl.className = 'badge badge-geral';
+    publicarBtn.classList.remove('hidden');
+    rascunhoBtn.classList.add('hidden');
+  }
+}
 
 async function carregarEditorQuestoes() {
   const { data: questoes } = await sb
@@ -31,7 +52,7 @@ async function carregarEditorQuestoes() {
     const card = document.createElement('div');
     card.className = `editor-q-card${editorQuestaoId === q.id ? ' active' : ''}`;
     card.innerHTML =
-      `<div class="editor-q-num">Questão ${i + 1} ${q.imagens?.length ? '<span class="has-img-badge">📷</span>' : ''}</div><div class="editor-q-preview">${esc(q.enunciado?.slice(0, 60)) || '(sem enunciado)'}</div><div class="editor-q-actions"><button class="btn-ghost btn-sm" onclick="window.moverQuestao('${esc(q.id)}','up')">↑</button><button class="btn-ghost btn-sm" onclick="window.moverQuestao('${esc(q.id)}','down')">↓</button><button class="btn-ghost btn-sm" onclick="window.selecionarQuestao('${esc(q.id)}')">✏️</button><button class="btn-danger btn-sm" onclick="window.excluirQuestao('${esc(q.id)}')">🗑️</button></div>`;
+      `<div class="editor-q-num">Questão ${i + 1} ${q.imagens?.length ? '<span class="has-img-badge">📷</span>' : ''}</div><div class="editor-q-preview">${esc(q.enunciado?.slice(0, 60)) || '(sem enunciado)'}</div><div class="editor-q-actions"><button class="btn-ghost btn-sm" data-action="mover" data-id="${esc(q.id)}" data-dir="up">↑</button><button class="btn-ghost btn-sm" data-action="mover" data-id="${esc(q.id)}" data-dir="down">↓</button><button class="btn-ghost btn-sm" data-action="selecionar" data-id="${esc(q.id)}">✏️</button><button class="btn-danger btn-sm" data-action="excluir" data-id="${esc(q.id)}">🗑️</button></div>`;
     lista.appendChild(card);
   });
   if (!questoes?.length)
@@ -46,36 +67,216 @@ window.selecionarQuestao = async (id) => {
   renderizarEditorForm(q);
 };
 
+function criarElementoSeguro(tag, attributes = {}, children = []) {
+  const element = document.createElement(tag);
+  Object.entries(attributes).forEach(([key, value]) => {
+    if (key === 'style' && typeof value === 'object') {
+      Object.entries(value).forEach(([styleKey, styleValue]) => {
+        element.style[styleKey] = styleValue;
+      });
+    } else if (key === 'dataset') {
+      Object.entries(value).forEach(([datasetKey, datasetValue]) => {
+        element.dataset[datasetKey] = datasetValue;
+      });
+    } else {
+      element[key] = value;
+    }
+  });
+  
+  children.forEach(child => {
+    if (typeof child === 'string') {
+      element.appendChild(document.createTextNode(child));
+    } else {
+      element.appendChild(child);
+    }
+  });
+  
+  return element;
+}
+
 function renderizarEditorForm(q) {
   const painel = document.getElementById('editor-questao-painel');
   const letras = ['A', 'B', 'C', 'D', 'E'];
-  const altsHtml = (q.alternativas || [])
-    .map(
-      (alt, i) =>
-        `<div class="alt-editor-row"><input class="alt-editor-radio" type="radio" name="alt-correta" value="${i}" ${q.correta === i ? 'checked' : ''} /><input type="text" class="alt-editor-inp" data-idx="${i}" value="${esc(alt)}" placeholder="Alternativa ${letras[i]}" /></div>`
-    )
-    .join('');
-  const imgsExistHtml = (q.imagens || [])
-    .map(
-      (u, i) =>
-        `<div class="pending-img-wrap"><img src="${esc(u)}" alt="" /><button class="pending-img-remove" onclick="window.removerImgQuestao(${i})">✕</button></div>`
-    )
-    .join('');
-  painel.innerHTML =
-    `<div class="editor-form"><div style="margin-bottom:16px;"><label>Enunciado</label><textarea id="q-enunciado" rows="5">${esc(q.enunciado || '')}</textarea></div><div style="margin-bottom:16px;"><label>Alternativas <small style="color:var(--text-muted);text-transform:none;">(marque a correta)</small></label><div id="alts-editor">${altsHtml}</div><button class="btn-ghost btn-sm" id="btn-add-alt" style="margin-top:8px;" ${(q.alternativas || []).length >= 5 ? 'disabled' : ''}>+ Alternativa</button></div><div style="margin-bottom:16px;"><label>Ordem</label><input type="number" id="q-ordem" value="${q.ordem || 1}" style="width:100%;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;color:var(--text);font-family:inherit;font-size:14.5px;outline:none;" /></div><div style="margin-bottom:16px;"><label>Imagens</label><div id="editor-q-imgs">${imgsExistHtml}</div><button class="btn-ghost btn-sm" id="btn-q-add-img" style="margin-top:8px;">+ Imagem</button></div><div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;"><button class="btn-ghost" onclick="window.cancelarEdicaoQuestao()">Cancelar</button><button class="btn-primary" id="btn-salvar-questao" style="width:auto;">Salvar questão</button></div></div>`;
-  document.getElementById('btn-add-alt').addEventListener('click', () => adicionarAlternativa());
-  document.getElementById('btn-q-add-img').addEventListener('click', () => document.getElementById('file-questao-img').click());
-  document.getElementById('btn-salvar-questao').addEventListener('click', () => salvarQuestao(q.id));
+  
+  // Limpar o painel primeiro
+  painel.innerHTML = '';
+  
+  // Criar elementos de forma segura
+  const formDiv = criarElementoSeguro('div', { className: 'editor-form' });
+  
+  // Enunciado
+  const enunciadoLabel = criarElementoSeguro('label', { textContent: 'Enunciado' });
+  const enunciadoTextarea = criarElementoSeguro('textarea', { 
+    id: 'q-enunciado', 
+    rows: 5,
+    value: q.enunciado || ''
+  });
+  
+  // Alternativas
+  const alternativasLabel = criarElementoSeguro('label', { 
+    innerHTML: 'Alternativas <small style="color:var(--text-muted);text-transform:none;">(marque a correta)</small>' 
+  });
+  
+  const altsContainer = criarElementoSeguro('div', { id: 'alts-editor' });
+  
+  (q.alternativas || []).forEach((alt, i) => {
+    const altRow = criarElementoSeguro('div', { className: 'alt-editor-row' });
+    
+    const radio = criarElementoSeguro('input', { 
+      type: 'radio', 
+      className: 'alt-editor-radio',
+      name: 'alt-correta',
+      value: i,
+      checked: q.correta === i
+    });
+    
+    const input = criarElementoSeguro('input', { 
+      type: 'text', 
+      className: 'alt-editor-inp',
+      dataset: { idx: i },
+      value: alt,
+      placeholder: `Alternativa ${letras[i]}`
+    });
+    
+    const removeBtn = criarElementoSeguro('button', { 
+      className: 'btn-danger btn-sm btn-icon',
+      textContent: '✕'
+    });
+    removeBtn.addEventListener('click', () => window.removerAlternativa(removeBtn));
+    
+    altRow.appendChild(radio);
+    altRow.appendChild(input);
+    altRow.appendChild(removeBtn);
+    altsContainer.appendChild(altRow);
+  });
+  
+  const addAltBtn = criarElementoSeguro('button', { 
+    className: 'btn-ghost btn-sm',
+    id: 'btn-add-alt',
+    style: { marginTop: '8px' },
+    disabled: (q.alternativas || []).length >= 5,
+    textContent: '+ Alternativa'
+  });
+  
+  // Explicação
+  const explicacaoLabel = criarElementoSeguro('label', { 
+    innerHTML: 'Explicação <small style="color:var(--text-muted);text-transform:none;">(opcional — mostrada após o gabarito)</small>' 
+  });
+  const explicacaoTextarea = criarElementoSeguro('textarea', { 
+    id: 'q-explicacao', 
+    rows: 3,
+    value: q.explicacao || ''
+  });
+  
+  // Ordem
+  const ordemLabel = criarElementoSeguro('label', { textContent: 'Ordem' });
+  const ordemInput = criarElementoSeguro('input', { 
+    type: 'number',
+    id: 'q-ordem',
+    value: q.ordem || 1,
+    style: {
+      width: '100%',
+      background: 'var(--bg-3)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-sm)',
+      padding: '10px 14px',
+      color: 'var(--text)',
+      fontFamily: 'inherit',
+      fontSize: '14.5px',
+      outline: 'none'
+    }
+  });
+  
+  // Imagens
+  const imagensLabel = criarElementoSeguro('label', { textContent: 'Imagens' });
+  const imgsContainer = criarElementoSeguro('div', { id: 'editor-q-imgs' });
+  
+  (q.imagens || []).forEach((u, i) => {
+    const imgWrap = criarElementoSeguro('div', { className: 'pending-img-wrap' });
+    
+    const img = criarElementoSeguro('img', { 
+      src: u,
+      alt: ''
+    });
+    
+    const removeImgBtn = criarElementoSeguro('button', { 
+      className: 'pending-img-remove',
+      textContent: '✕'
+    });
+    removeImgBtn.addEventListener('click', () => window.removerImgQuestao(i));
+    
+    imgWrap.appendChild(img);
+    imgWrap.appendChild(removeImgBtn);
+    imgsContainer.appendChild(imgWrap);
+  });
+  
+  const addImgBtn = criarElementoSeguro('button', { 
+    className: 'btn-ghost btn-sm',
+    id: 'btn-q-add-img',
+    style: { marginTop: '8px' },
+    textContent: '+ Imagem'
+  });
+  
+  // Botões de ação
+  const buttonsDiv = criarElementoSeguro('div', { 
+    style: {
+      display: 'flex',
+      gap: '10px',
+      justifyContent: 'flex-end',
+      marginTop: '20px'
+    }
+  });
+  
+  const cancelBtn = criarElementoSeguro('button', { 
+    className: 'btn-ghost',
+    textContent: 'Cancelar'
+  });
+  cancelBtn.addEventListener('click', window.cancelarEdicaoQuestao);
+  
+  const saveBtn = criarElementoSeguro('button', { 
+    className: 'btn-primary',
+    id: 'btn-salvar-questao',
+    style: { width: 'auto' },
+    textContent: 'Salvar questão'
+  });
+  
+  buttonsDiv.appendChild(cancelBtn);
+  buttonsDiv.appendChild(saveBtn);
+  
+  // Montar o formulário
+  formDiv.appendChild(enunciadoLabel);
+  formDiv.appendChild(enunciadoTextarea);
+  formDiv.appendChild(alternativasLabel);
+  formDiv.appendChild(altsContainer);
+  formDiv.appendChild(addAltBtn);
+  formDiv.appendChild(explicacaoLabel);
+  formDiv.appendChild(explicacaoTextarea);
+  formDiv.appendChild(ordemLabel);
+  formDiv.appendChild(ordemInput);
+  formDiv.appendChild(imagensLabel);
+  formDiv.appendChild(imgsContainer);
+  formDiv.appendChild(addImgBtn);
+  formDiv.appendChild(buttonsDiv);
+  
+  painel.appendChild(formDiv);
+  
+  // Adicionar eventos após criar os elementos
+  addAltBtn.addEventListener('click', adicionarAlternativa);
+  addImgBtn.addEventListener('click', () => document.getElementById('file-questao-img').click());
+  saveBtn.addEventListener('click', () => salvarQuestao(editorQuestaoId));
+  
   questaoExistingImgs = [...(q.imagens || [])];
 }
 
-window.removerAlternativa = (idx) => {
-  const inputs = document.querySelectorAll('.alt-editor-inp');
-  if (inputs.length <= 2) {
+window.removerAlternativa = (btnEl) => {
+  const row = btnEl.closest('.alt-editor-row');
+  if (!row) return;
+  const rows = document.querySelectorAll('.alt-editor-row');
+  if (rows.length <= 2) {
     toast('Mínimo 2 alternativas', 'warn');
     return;
   }
-  document.querySelectorAll('.alt-editor-row')[idx]?.remove();
+  row.remove();
 };
 
 function adicionarAlternativa() {
@@ -88,8 +289,35 @@ function adicionarAlternativa() {
   div.className = 'alt-editor-row';
   const idx = alts.length;
   const letras = ['A', 'B', 'C', 'D', 'E'];
-  div.innerHTML =
-    `<input class="alt-editor-radio" type="radio" name="alt-correta" value="${idx}" /><input type="text" class="alt-editor-inp" data-idx="${idx}" value="" placeholder="Alternativa ${letras[idx]}" style="width:100%;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;color:var(--text);font-family:inherit;font-size:14.5px;outline:none;" /><button class="btn-danger btn-sm btn-icon" onclick="window.removerAlternativa(${idx})">✕</button>`;
+  const radio = document.createElement('input');
+  radio.type = 'radio';
+  radio.className = 'alt-editor-radio';
+  radio.name = 'alt-correta';
+  radio.value = idx;
+  
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'alt-editor-inp';
+  input.dataset.idx = idx;
+  input.placeholder = `Alternativa ${letras[idx]}`;
+  input.style.width = '100%';
+  input.style.background = 'var(--bg-3)';
+  input.style.border = '1px solid var(--border)';
+  input.style.borderRadius = 'var(--radius-sm)';
+  input.style.padding = '10px 14px';
+  input.style.color = 'var(--text)';
+  input.style.fontFamily = 'inherit';
+  input.style.fontSize = '14.5px';
+  input.style.outline = 'none';
+  
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'btn-danger btn-sm btn-icon';
+  removeBtn.textContent = '✕';
+  removeBtn.addEventListener('click', () => window.removerAlternativa(removeBtn));
+  
+  div.appendChild(radio);
+  div.appendChild(input);
+  div.appendChild(removeBtn);
   document.getElementById('alts-editor').appendChild(div);
 }
 
@@ -99,12 +327,19 @@ document.getElementById('file-questao-img').addEventListener('change', (e) => {
     editorQuestaoImgs.push({ file, previewUrl });
     const wrap = document.createElement('div');
     wrap.className = 'pending-img-wrap';
-    wrap.innerHTML = `<img src="${previewUrl}" alt="" /><button class="pending-img-remove">✕</button>`;
-    wrap.querySelector('button').addEventListener('click', () => {
+    const img = document.createElement('img');
+    img.src = previewUrl;
+    img.alt = '';
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'pending-img-remove';
+    removeBtn.textContent = '✕';
+    removeBtn.addEventListener('click', () => {
       const i = editorQuestaoImgs.findIndex((p) => p.previewUrl === previewUrl);
       if (i >= 0) editorQuestaoImgs.splice(i, 1);
       wrap.remove();
     });
+    wrap.appendChild(img);
+    wrap.appendChild(removeBtn);
     document.getElementById('editor-q-imgs').appendChild(wrap);
   });
   e.target.value = '';
@@ -136,6 +371,7 @@ async function salvarQuestao(qid) {
     return;
   }
   const correta = parseInt(corretaRadio.value);
+  const explicacao = (document.getElementById('q-explicacao')?.value || '').trim() || null;
   const ordem = parseInt(document.getElementById('q-ordem')?.value) || 1;
   const btn = document.getElementById('btn-salvar-questao');
   btn.disabled = true;
@@ -150,7 +386,7 @@ async function salvarQuestao(qid) {
     }
   }
   const imagens = [...questaoExistingImgs, ...novasUrls];
-  const payload = { enunciado, alternativas, correta, ordem, imagens, simulado_id: editorSimuladoId };
+  const payload = { enunciado, alternativas, correta, explicacao, ordem, imagens, simulado_id: editorSimuladoId };
   const { error } = qid
     ? await sb.from('questoes').update(payload).eq('id', qid)
     : await sb.from('questoes').insert(payload);
@@ -175,7 +411,7 @@ document.getElementById('btn-nova-questao').addEventListener('click', () => {
   editorQuestaoId = null;
   editorQuestaoImgs = [];
   questaoExistingImgs = [];
-  renderizarEditorForm({ enunciado: '', alternativas: ['', ''], correta: 0, ordem: 1, imagens: [] });
+  renderizarEditorForm({ enunciado: '', alternativas: ['', ''], correta: 0, explicacao: '', ordem: 1, imagens: [] });
 });
 
 window.moverQuestao = async (id, dir) => {
@@ -234,7 +470,7 @@ document.getElementById('file-import-json').addEventListener('change', (e) => {
         erros.push(`Q${i + 1}: ${errosQ.join(', ')}`);
         return;
       }
-      validas.push({ ...q, simulado_id: editorSimuladoId, imagens: q.imagens || [] });
+      validas.push({ ...q, simulado_id: editorSimuladoId, imagens: q.imagens || [], explicacao: q.explicacao || null });
     });
     const msg = erros.length
       ? `${validas.length} questão(ões) válida(s). Erros: ${erros.slice(0, 3).join('; ')}${erros.length > 3 ? '…' : ''}`
@@ -256,6 +492,45 @@ document.getElementById('file-import-json').addEventListener('change', (e) => {
   };
   reader.readAsText(file);
   e.target.value = '';
+});
+
+async function publicarSimulado() {
+  if (!editorSimuladoId) return;
+  const { error } = await sb.from('simulados').update({ ativo: true }).eq('id', editorSimuladoId);
+  if (error) {
+    toast('Erro ao publicar', 'error');
+    return;
+  }
+  editorSimuladoAtivo = true;
+  atualizarStatusEditor();
+  toast('Simulado publicado! ✅', 'success');
+  carregarSimulados();
+}
+
+async function salvarComoRascunho() {
+  if (!editorSimuladoId) return;
+  const { error } = await sb.from('simulados').update({ ativo: false }).eq('id', editorSimuladoId);
+  if (error) {
+    toast('Erro ao salvar', 'error');
+    return;
+  }
+  editorSimuladoAtivo = false;
+  atualizarStatusEditor();
+  toast('Salvo como rascunho 📝', 'success');
+  carregarSimulados();
+}
+
+document.getElementById('btn-publicar-simulado').addEventListener('click', () => {
+  const questoesList = document.getElementById('editor-questoes-lista');
+  if (!questoesList.children.length || questoesList.querySelector('.empty-state')) {
+    toast('Adicione ao menos uma questão antes de publicar', 'warn');
+    return;
+  }
+  confirmar('Publicar simulado', 'Ao publicar, o simulado ficará visível para os alunos.', publicarSimulado, 'Publicar');
+});
+
+document.getElementById('btn-rascunho-simulado').addEventListener('click', () => {
+  confirmar('Salvar como rascunho', 'O simulado será removido da visão dos alunos.', salvarComoRascunho, 'Salvar como rascunho');
 });
 
 document.getElementById('btn-voltar-editor').addEventListener('click', () => {

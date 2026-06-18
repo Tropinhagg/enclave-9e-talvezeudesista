@@ -1,7 +1,11 @@
-# Variáveis de ambiente reais — NUNCA commitar
+# Dependências (instaladas localmente)
+node_modules/
+
+# Variáveis de ambiente — NUNCA commitar
 .env
 .env.local
 .env.production
+.env.keys
 
 # Sistemas operacionais
 .DS_Store
@@ -13,12 +17,25 @@ Thumbs.db
 *.swp
 *.swo
 
-# Node (se usado localmente para utilitários)
-node_modules/
-package-lock.json
-
 # Logs
 *.log
+npm-debug.log*
 
-# GitHub Pages (gerado pelo Actions — não commitar manualmente)
+# GitHub Pages (gerado pelo Actions)
 gh-pages/
+
+# Supabase — pastas geradas automaticamente
+supabase/.branches
+supabase/.temp
+
+# Build do Vite
+dist/
+
+# Código legado (não utilizado pelo app)
+assets/
+
+# Imagens locais (não usar — Cloudinary é o storage oficial)
+public/images/*.jpg
+public/images/*.png
+public/images/*.webp
+public/images/*.gif

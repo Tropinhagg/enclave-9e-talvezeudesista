@@ -45,6 +45,7 @@ export function buildBackgroundCarousel() {
       img.alt = '';
       img.setAttribute('aria-hidden', 'true');
       if (index > 0) img.loading = 'lazy';
+      img.onerror = () => { img.style.display = 'none'; };
       slide.appendChild(img);
     }
     carousel.appendChild(slide);
